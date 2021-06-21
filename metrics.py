@@ -146,7 +146,7 @@ def average_precision(actual: Sequence[Any], desired: Sequence[Any], *args, **kw
     return sum(precisions) / len(desired)
 
 
-def fscore(actual: Sequence[Any], desired: Sequence[Any], eval_at: Optional[int], beta: int, *args,
+def fscore(actual: Sequence[Any], desired: Sequence[Any], eval_at: Optional[int], beta: float, *args,
            **kwargs) -> float:
     """"
     Evaluate the f-score of the search.
@@ -164,7 +164,7 @@ def fscore(actual: Sequence[Any], desired: Sequence[Any], eval_at: Optional[int]
     """
     assert beta != 0, 'fScore is not defined for beta 0'
     weight = beta ** 2
-    if not desired or self.eval_at == 0:
+    if not desired or eval_at == 0:
         return 0.0
 
     actual_at_k = actual[:eval_at] if eval_at else actual
