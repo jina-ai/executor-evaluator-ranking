@@ -13,8 +13,18 @@ from metrics import precision, recall, reciprocal_rank, average_precision, fscor
 class RankingEvaluator(Executor):
     class DocGroundtruthPair:
         def __init__(self, doc: 'Document', groundtruth: 'Document'):
-            self.doc = doc
-            self.groundtruth = groundtruth
+            self.pair = (doc, groundtruth)
+
+        def __getitem__(self, item):
+            return self.pair[item]
+
+        @property
+        def doc(self):
+            return self[0]
+
+        @property
+        def groundtruth(self):
+            return self[1]
 
         @property
         def matches(self):
@@ -31,19 +41,28 @@ class RankingEvaluator(Executor):
                 pairs.append(RankingEvaluator.DocGroundtruthPair(doc, groundtruth))
             return RankingEvaluator.DocumentGroundtruthArray(pairs)
 
-        def __getitem__(self, item):
-            if item == 0:
-                return self.doc
-            else:
-                return self.groundtruth
-
     class DocumentGroundtruthArray(TraversableSequence):
         def __init__(self, pairs):
             self._pairs = pairs
 
+        @property
+        def matches(self):
+            pairs = []
+            for doc, groundtruth in zip(self.doc.matches, self.groundtruth.matches):
+                pairs.append(RankingEvaluator.DocGroundtruthPair(doc, groundtruth))
+            return RankingEvaluator.DocumentGroundtruthArray(pairs)
+
+        @property
+        def chunks(self):
+            assert len(self.doc.chunks) == len(self.groundtruth.chunks)
+            pairs = []
+            for doc, groundtruth in zip(self.doc.chunks, self.groundtruth.chunks):
+                pairs.append(RankingEvaluator.DocGroundtruthPair(doc, groundtruth))
+            return RankingEvaluator.DocumentGroundtruthArray(pairs)
+
         def __iter__(self):
             for pair in self._pairs:
-                yield pair[0], pair[1]
+                yield pair
 
     def __init__(
             self,
