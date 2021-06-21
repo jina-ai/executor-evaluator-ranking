@@ -1,7 +1,7 @@
 __copyright__ = "Copyright (c) 2021 Jina AI Limited. All rights reserved."
 __license__ = "Apache-2.0"
 
-from typing import Optional, Union, List, Dict
+from typing import Optional, Union, List, Dict, Tuple
 
 from jina.logging.logger import JinaLogger
 from jina import DocumentArray, Executor, requests, Document
@@ -68,12 +68,12 @@ class RankingEvaluator(Executor):
             self,
             metric: str = 'precision',
             eval_at: Optional[int] = None,
-            beta: int = 1,
+            beta: Union[int, float] = 1,
             power_relevance: bool = True,
             is_relevance_score: bool = True,
-            attribute_fields: Union[str, List[str]] = ['tags__id'],
-            default_traversal_path: Union[str, List[str]] = 'r',
+            attribute_fields: Union[str, Tuple[str]] = ('tags__id',),
             evaluation_name: Optional[str] = None,
+            default_traversal_path: Union[str, List[str]] = 'r',
             *args,
             **kwargs,
     ):
@@ -114,7 +114,9 @@ class RankingEvaluator(Executor):
         return self.evaluation_name or f'{self.metric}@{self.eval_at}' if self.eval_at is not None else self.metric
 
     @requests
-    def evaluate(self, docs: DocumentArray, groundtruths: DocumentArray, parameters: Dict, **kwargs):
+    def evaluate(self, docs: Optional[DocumentArray], groundtruths: Optional[DocumentArray], parameters: Dict, **kwargs):
+        if docs is None or groundtruths is None:
+            return 
         traversal_paths = parameters.get('traversal_path', self.default_traversal_path)
         docs_groundtruths = self.DocumentGroundtruthArray(
             [
