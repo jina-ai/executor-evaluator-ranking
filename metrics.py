@@ -142,11 +142,21 @@ def average_precision(actual: Sequence[Any], desired: Sequence[Any], *args, **kw
     if len(desired) == 0 or len(actual) == 0:
         return 0.0
 
-    precisions = list(map(lambda eval_at: precisions(eval_at, actual, desired), range(1, len(actual) + 1)))
+    desired_set = set(desired)
+
+    def _precision(eval_at: int):
+        if actual[eval_at - 1] not in desired_set:
+            return 0.0
+        actual_at_k = actual[:eval_at]
+        ret = len(set(actual_at_k).intersection(desired_set))
+        sub = len(actual_at_k)
+        return ret / sub if sub != 0 else 0.
+
+    precisions = list(map(lambda eval_at: _precision(eval_at=eval_at), range(1, len(actual) + 1)))
     return sum(precisions) / len(desired)
 
 
-def fscore(actual: Sequence[Any], desired: Sequence[Any], eval_at: Optional[int], beta: int, *args,
+def fscore(actual: Sequence[Any], desired: Sequence[Any], eval_at: Optional[int], beta: float, *args,
            **kwargs) -> float:
     """"
     Evaluate the f-score of the search.
@@ -164,7 +174,7 @@ def fscore(actual: Sequence[Any], desired: Sequence[Any], eval_at: Optional[int]
     """
     assert beta != 0, 'fScore is not defined for beta 0'
     weight = beta ** 2
-    if not desired or self.eval_at == 0:
+    if not desired or eval_at == 0:
         return 0.0
 
     actual_at_k = actual[:eval_at] if eval_at else actual

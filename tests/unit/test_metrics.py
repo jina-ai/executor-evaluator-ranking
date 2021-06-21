@@ -1,95 +1,170 @@
 import pytest
-import os
-import numpy as np
-from PIL.Image import Image
+import random
 
-from jina import DocumentArray, Document
-
-from jinahub.image.normalizer import ImageNormalizer
-
-cur_dir = os.path.dirname(os.path.abspath(__file__))
+try:
+    from metrics import precision, recall, reciprocal_rank, ndcg, fscore, average_precision
+except:
+    from jinahub.evaluators.rank.metrics import precision, recall, reciprocal_rank, ndcg, fscore, average_precision
 
 
-def test_initialization():
-    norm = ImageNormalizer()
-    assert norm.target_size == 224
-    norm = ImageNormalizer(
-        target_size=96,
-        img_mean=(1., 2., 3.),
-        img_std=(2., 2., 2.),
-        resize_dim=256,
-        channel_axis=4,
-        target_channel_axis=5,
-    )
-    assert norm.target_size == 96
-    assert np.array_equal(norm.img_std, [[[2, 2, 2]]])
-    assert np.array_equal(norm.img_mean, [[[1, 2, 3]]])
-    assert norm.resize_dim == 256
-    assert norm.channel_axis == 4
-    assert norm.target_channel_axis == 5
+@pytest.mark.parametrize(
+    'eval_at, expected',
+    [(None, 0.4), (0, 0.0), (2, 1.0), (4, 0.5), (5, 0.4), (100, 0.4)],
+)
+def test_precision(eval_at, expected):
+    matches_ids = [0, 1, 2, 3, 4]
+
+    desired_ids = [1, 0, 20, 30, 40]
+
+    assert precision(actual=matches_ids, desired=desired_ids, eval_at=eval_at) == expected
 
 
-def test_crafting_image():
-    doc = Document(uri=os.path.join(cur_dir, '..', 'data', 'test_image.png'))
-    doc.convert_image_uri_to_blob()
-    norm = ImageNormalizer(resize_dim=123,
-                           img_mean=(0.1, 0.1, 0.1),
-                           img_std=(0.5, 0.5, 0.5))
-    img = norm._load_image(doc.blob)
-    assert isinstance(img, Image)
-    assert img.size == (96, 96)
+def test_precision_no_groundtruth():
+    matches_ids = [0, 1, 2, 3, 4]
 
-    img_resized = norm._resize_short(img)
-    assert img_resized.size == (123, 123)
-    assert isinstance(img_resized, Image)
+    desired_ids = []
 
-    norm.resize_dim = (123, 456)
-    img_resized = norm._resize_short(img)
-    assert img_resized.size == (123, 456)
-    assert isinstance(img_resized, Image)
+    assert precision(actual=matches_ids, desired=desired_ids, eval_at=2) == 0.0
 
+
+@pytest.mark.parametrize(
+    'eval_at, expected',
+    [(None, 0.4), (0, 0.0), (1, 0.2), (2, 0.4), (3, 0.4), (5, 0.4), (100, 0.4)],
+)
+def test_recall(eval_at, expected):
+    matches_ids = [0, 1, 2, 3, 4]
+
+    desired_ids = [1, 0, 20, 30, 40]
+
+    assert recall(actual=matches_ids, desired=desired_ids, eval_at=eval_at) == expected
+
+
+def test_recall_no_matches():
+    matches_ids = []
+
+    desired_ids = [1, 0, 20, 30, 40]
+
+    assert recall(actual=matches_ids, desired=desired_ids, eval_at=2) == 0.0
+
+
+@pytest.mark.parametrize('actual, desired, score',
+                         [
+                             ([], [], 0.0),
+                             ([1, 2, 3, 4], [], 0.0),
+                             ([], [1, 2, 3, 4], 0.0),
+                             ([1, 2, 3, 4], [1, 2, 3, 4], 1.0),
+                             ([1, 2, 3, 4], [2, 1, 3, 4], 0.5),
+                             ([1, 2, 3, 4], [11, 1, 2, 3], 0.0),
+                             ([4, 2, 3, 1], [1, 2, 3, 4], 0.25),
+                             ([2, 1, 3, 4, 5, 6, 7, 8, 9, 10], [1, 3, 6, 9, 10], 0.5)
+                         ]
+                         )
+def test_reciprocalrank(actual, desired, score):
+    assert reciprocal_rank(actual, desired) == score
+
+
+@pytest.mark.repeat(10)
+@pytest.mark.parametrize('string_keys', [False, True])
+@pytest.mark.parametrize('actual, power_relevance, is_relevance_score, expected',
+                         [
+                             ([(1, .9), (3, .8), (4, .7), (2, 0.)], False, True, 1.0),
+                             ([(1, .9), (3, .8), (4, .7), (2, 0.)], True, True, 1.0),
+                             ([(10, .9), (30, .8), (40, .7), (20, 0.)], False, True, 0.0),
+                             ([(10, .9), (30, .8), (40, .7), (20, 0.)], True, True, 0.0),
+                             ([(1, .9), (3, .8), (4, .7), (2, 0.)], False, False, 0.278),
+                             ([(1, .9), (3, .8), (4, .7), (2, 0.)], True, False, 0.209),
+                             ([(1, .0), (3, .1), (4, .2), (2, 0.3)], False, True, 0.278),
+                             ([(1, .0), (3, .1), (4, .2), (2, 0.3)], True, True, 0.209),
+                             ([(1, .0), (3, .1), (4, .2), (2, 0.3)], False, False, 1.0),
+                             ([(1, .0), (3, .1), (4, .2), (2, 0.3)], True, False, 1.0)
+                         ]
+                         )
+def test_ndcg(actual, power_relevance, is_relevance_score, expected, string_keys):
+    def _key_to_str(x):
+        return str(x[0]), x[1]
+
+    desired = [(1, .8), (3, .4), (4, .1), (2, 0.)]
+    if string_keys:
+        desired = list(map(_key_to_str, desired))
+        actual = list(map(_key_to_str, actual))
+    random.shuffle(actual)
+    random.shuffle(desired)
+    assert ndcg(
+        actual=actual,
+        desired=desired,
+        eval_at=3,
+        power_relevance=power_relevance,
+        is_relevance_score=is_relevance_score
+    ) == pytest.approx(expected, 0.01)
+
+
+@pytest.mark.parametrize('actual, desired', [
+    ([], [(1, .8), (2, .4), (3, .1), (4, 0)]),  # actual is empty
+    ([(1, .4), (2, .1), (3, .8)], []),  # desired is empty
+    ([(1, .4), (2, .1), (3, .8)], [(1, .4), (2, .1), (3, -5)]),  # desired has negative value
+])
+def test_ndcg_fail(actual, desired):
     with pytest.raises(ValueError):
-        norm.resize_dim = (1, 2, 3)
-        norm._resize_short(img)
-
-    norm.resize_dim = 256
-    img = norm._resize_short(img)
-
-    norm.target_size = 128
-    cropped_img, b1, b2 = norm._crop_image(img, how='random')
-    assert cropped_img.size == (128, 128)
-    assert isinstance(cropped_img, Image)
-
-    norm.target_size = 224
-    img, b1, b2 = norm._crop_image(img, how='center')
-    assert img.size == (224, 224)
-    assert isinstance(img, Image)
-    assert b1 == 16
-    assert b2 == 16
-
-    img = np.asarray(img).astype('float32') / 255
-
-    norm_img = norm._normalize(norm._load_image(doc.blob))
-
-    img -= np.array([[[0.1, 0.1, 0.1]]])
-    img /= np.array([[[0.5, 0.5, 0.5]]])
-
-    assert np.array_equal(norm_img, img)
-
-    processed_docs = norm.craft(DocumentArray([doc]))
-    assert np.array_equal(processed_docs[0].blob, img)
+        ndcg(actual=actual, desired=desired, eval_at=3, power_relevance=True, is_relevance_score=True)
 
 
-def test_move_channel_axis():
-    norm = ImageNormalizer(channel_axis=2, target_channel_axis=0)
+@pytest.mark.parametrize(
+    'eval_at, beta, expected',
+    [
+        (None, 1.0, 0.4),
+        (0, 1.0, 0.0),
+        (2, 1.0, 0.5714),
+        (2, 0.32, 0.8777),
+        (5, 1.0, 0.4),
+        (100, 1.0, 0.4),
+        (5, 0.5, 0.4),
+        (100, 4.0, 0.4)
+    ]
+)
+def test_fscore(eval_at, beta, expected):
+    matches_ids = ['0', '1', '2', '3', '4']
 
-    doc = Document(uri=os.path.join(cur_dir, '..', 'data', 'test_image.png'))
-    doc.convert_image_uri_to_blob()
-    img = norm._load_image(doc.blob)
-    assert img.size == (96, 96)
+    desired_ids = ['1', '0', '20', '30', '40']
 
-    channel0_img = norm._move_channel_axis(doc.blob, 2, 0)
-    assert channel0_img.shape == (3, 96, 96)
+    assert fscore(actual=matches_ids, desired=desired_ids, eval_at=eval_at, beta=beta) == pytest.approx(expected, 0.001)
 
-    processed_docs = norm.craft(DocumentArray([doc]))
-    assert processed_docs[0].blob.shape == (3, 224, 224)
+
+def test_fscore_evaluator_invalid_beta():
+    matches_ids = ['0', '1', '2', '3', '4']
+
+    desired_ids = ['1', '0', '20', '30', '40']
+
+    with pytest.raises(AssertionError):
+        fscore(actual=matches_ids, desired=desired_ids, eval_at=10, beta=0)
+
+
+@pytest.mark.parametrize(
+    'matches_ids, desired_ids, expected',
+    [
+        ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [1, 3, 6, 9, 10], 0.6222),
+        ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], [7, 5, 2], 0.4428),
+        ([0, 1, 2, 3], [0, 1, 2, 3], 1.0),
+        ([0, 1], [0, 1, 2, 3], 0.5),
+        ([0, 1, 4, 5], [0, 1, 2, 3], 0.5),
+        ([4, 5, 6, 7], [0, 1, 2, 3], 0.0),
+        ([0, 1, 4, 2], [0, 1, 2, 3], 0.6875),
+        ([0, 1, 3], [0, 1, 2, 3], 0.75),
+        ([0, 1, 3, 2], [0, 1, 2, 3], 1.0),
+    ]
+)
+def test_average_precision(matches_ids, desired_ids, expected):
+    assert average_precision(actual=matches_ids, desired=desired_ids) == pytest.approx(expected, 0.001)
+
+
+def test_average_precision_no_groundtruth():
+    matches_ids = [0, 1, 2, 3, 4]
+    desired_ids = []
+
+    assert average_precision(actual=matches_ids, desired=desired_ids) == 0.0
+
+
+def test_average_precision_no_actuals():
+    matches_ids = []
+    desired_ids = [1, 2]
+
+    assert average_precision(actual=matches_ids, desired=desired_ids) == 0.0

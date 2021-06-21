@@ -3,10 +3,11 @@ __license__ = "Apache-2.0"
 
 from typing import Optional, Union, List, Dict
 
+from jina.logging.logger import JinaLogger
 from jina import DocumentArray, Executor, requests, Document
 from jina.types.arrays.traversable import TraversableSequence
 
-from .metrics import precision, recall, reciprocal_rank, average_precision, fscore, ndcg
+from metrics import precision, recall, reciprocal_rank, average_precision, fscore, ndcg
 
 
 class RankingEvaluator(Executor):
@@ -30,13 +31,19 @@ class RankingEvaluator(Executor):
                 pairs.append(RankingEvaluator.DocGroundtruthPair(doc, groundtruth))
             return RankingEvaluator.DocumentGroundtruthArray(pairs)
 
+        def __getitem__(self, item):
+            if item == 0:
+                return self.doc
+            else:
+                return self.groundtruth
+
     class DocumentGroundtruthArray(TraversableSequence):
         def __init__(self, pairs):
             self._pairs = pairs
 
         def __iter__(self):
             for pair in self._pairs:
-                yield pair.doc, pair.groundtruth
+                yield pair[0], pair[1]
 
     def __init__(
             self,
@@ -45,7 +52,7 @@ class RankingEvaluator(Executor):
             beta: int = 1,
             power_relevance: bool = True,
             is_relevance_score: bool = True,
-            attribute_id: str = 'tags__id',
+            attribute_fields: Union[str, List[str]] = ['tags__id'],
             default_traversal_path: Union[str, List[str]] = 'r',
             evaluation_name: Optional[str] = None,
             *args,
@@ -63,14 +70,17 @@ class RankingEvaluator(Executor):
         }
         if metric not in funcs.keys():
             raise Exception(f'Evaluation Metric {metric} is not supported. Potential values are {set(funcs.keys())}')
+        if metric == 'ndcg' and (not isinstance(attribute_fields, list) or len(attribute_fields) != 2):
+            raise Exception(f'NDCG metric requires 2 attribute fields, one for the id and one for the score value')
+        self.logger = JinaLogger(self.__class__.__name__)
         self.metric = metric
         self.eval_at = eval_at
         self.beta = beta
         self.power_relevance = power_relevance
         self.is_relevance_score = is_relevance_score
-        self.attribute_id = attribute_id
+        self.attribute_fields = attribute_fields if isinstance(attribute_fields, list) else list(attribute_fields)
         self.default_traversal_path = default_traversal_path
-        self.evaluation_name = evaluation_name or f'{self.metric}@{self.eval_at}' if self.eval_at is not None else self.metric
+        self.evaluation_name = evaluation_name
 
         self.metric_fn = funcs[self.metric]
         self.func_extra_args = {
@@ -79,6 +89,10 @@ class RankingEvaluator(Executor):
             'power_relevance': self.power_relevance,
             'is_relevance_score': self.is_relevance_score
         }
+
+    @property
+    def _evaluation_name(self):
+        return self.evaluation_name or f'{self.metric}@{self.eval_at}' if self.eval_at is not None else self.metric
 
     @requests
     def evaluate(self, docs: DocumentArray, groundtruths: DocumentArray, parameters: Dict, **kwargs):
@@ -90,8 +104,8 @@ class RankingEvaluator(Executor):
             ]
         )
 
-        for doc, groundtruth in docs_groundtruths.traverse_flatten(traversal_paths):
-            actual = [match.get_attributes(self.attribute_id) for match in doc.matches]
-            desired = [match.get_attributes(self.attribute_id) for match in groundtruth.matches]
+        for doc, groundtruth in docs_groundtruths.traverse_flat(traversal_paths):
+            actual = [match.get_attributes(*self.attribute_fields) for match in doc.matches]
+            desired = [match.get_attributes(*self.attribute_fields) for match in groundtruth.matches]
             evaluation = self.metric_fn(actual=actual, desired=desired, **self.func_extra_args)
-            doc.evaluations[self.evaluation_name] = evaluation
+            doc.evaluations[self._evaluation_name] = evaluation

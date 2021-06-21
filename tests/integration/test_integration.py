@@ -1,21 +1,28 @@
+import pytest
+
 import os
 
-from jina import Flow, Document
+from jina import Flow, Document, DocumentArray
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 
 
-def data_generator(num_docs):
-    for i in range(num_docs):
-        doc = Document(
-            uri=os.path.join(cur_dir, '..', 'data', 'test_image.png'))
-        doc.convert_image_uri_to_blob()
-        yield doc
+def test_evaluation():
 
+    def get_doc_groundtruth_pairs():
+        matches = DocumentArray([Document(tags={'id': i}) for i in range(5)])
+        matches_gt = DocumentArray(
+            [Document(tags={'id': 1}), Document(tags={'id': 0}), Document(tags={'id': 20}), Document(tags={'id': 30}),
+             Document(tags={'id': 40})])
+        query = Document()
+        query.matches = matches
+        gt = Document()
+        gt.matches = matches_gt
+        yield query, gt
 
-def test_use_in_flow():
-    with Flow.load_config('flow.yml') as flow:
-        data = flow.post(on='/index', inputs=data_generator(5))
-        docs = data[0].docs
-        for doc in docs:
-            assert doc.blob.shape == (64, 64, 3)
+    with Flow.load_config(os.path.join(cur_dir, 'flow.yml')) as evaluate_flow:
+        results = evaluate_flow.search(
+            inputs=get_doc_groundtruth_pairs()
+        )
+
+    assert results[0].docs[0].evaluations[f'precision@5'].value == pytest.approx(0.4, 0.0001)
