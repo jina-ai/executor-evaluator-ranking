@@ -12,7 +12,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
-    #py_modules=['jinahub.evaluators.rank'],
+    py_modules=['jinahub.evaluators.rank.ranking_evaluator', 'jinahub.evaluators.rank.metrics'],
     package_dir={'jinahub.evaluators.rank': '.'},
     install_requires=open("requirements.txt").readlines(),
     python_requires=">=3.7",

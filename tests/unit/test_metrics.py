@@ -3,6 +3,7 @@ import random
 
 from metrics import precision, recall, reciprocal_rank, ndcg, fscore
 
+from jinahub.evaluators.rank import
 
 @pytest.mark.parametrize(
     'eval_at, expected',
