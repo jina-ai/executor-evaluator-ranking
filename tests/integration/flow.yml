@@ -2,10 +2,10 @@ jtype: Flow
 version: '1'
 with:
   return_results: true
-  workspace: $WORKSPACE
 executors:
-  - name: normalizer
+  - name: evaluator
     uses:
-      jtype: ImageNormalizer
+      jtype: RankingEvaluator
       with:
-        target_size: 64
+        eval_at: 5
+        metric: 'precision'

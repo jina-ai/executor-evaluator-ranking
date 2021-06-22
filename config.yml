@@ -1,6 +1,7 @@
-jtype: ImageNormalizer
+jtype: RankingEvaluator
 with:
   {}
 metas:
   py_modules:
-    - normalizer.py
+    - metrics.py
+    - ranking_evaluator.py
