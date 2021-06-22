@@ -3,7 +3,7 @@ import setuptools
 
 setuptools.setup(
     name="executors-evaluator-ranking",
-    version="2.0",
+    version="1",
     author='Jina Dev Team',
     author_email='dev-team@jina.ai',
     description="Executor that evaluates ranking results",
