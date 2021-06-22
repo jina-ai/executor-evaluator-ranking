@@ -31,7 +31,7 @@ class RankingEvaluator(Executor):
             pairs = []
             for doc, groundtruth in zip(self.doc.matches, self.groundtruth.matches):
                 pairs.append(RankingEvaluator.DocGroundtruthPair(doc, groundtruth))
-            return RankingEvaluator.DocumentGroundtruthArray(pairs)
+            return RankingEvaluator.DocGroundtruthArray(pairs)
 
         @property
         def chunks(self):
@@ -39,9 +39,9 @@ class RankingEvaluator(Executor):
             pairs = []
             for doc, groundtruth in zip(self.doc.chunks, self.groundtruth.chunks):
                 pairs.append(RankingEvaluator.DocGroundtruthPair(doc, groundtruth))
-            return RankingEvaluator.DocumentGroundtruthArray(pairs)
+            return RankingEvaluator.DocGroundtruthArray(pairs)
 
-    class DocumentGroundtruthArray(TraversableSequence):
+    class DocGroundtruthArray(TraversableSequence):
         def __init__(self, pairs):
             self._pairs = pairs
 
@@ -50,7 +50,7 @@ class RankingEvaluator(Executor):
             pairs = []
             for doc, groundtruth in zip(self.doc.matches, self.groundtruth.matches):
                 pairs.append(RankingEvaluator.DocGroundtruthPair(doc, groundtruth))
-            return RankingEvaluator.DocumentGroundtruthArray(pairs)
+            return RankingEvaluator.DocGroundtruthArray(pairs)
 
         @property
         def chunks(self):
@@ -58,7 +58,7 @@ class RankingEvaluator(Executor):
             pairs = []
             for doc, groundtruth in zip(self.doc.chunks, self.groundtruth.chunks):
                 pairs.append(RankingEvaluator.DocGroundtruthPair(doc, groundtruth))
-            return RankingEvaluator.DocumentGroundtruthArray(pairs)
+            return RankingEvaluator.DocGroundtruthArray(pairs)
 
         def __iter__(self):
             for pair in self._pairs:
@@ -118,7 +118,7 @@ class RankingEvaluator(Executor):
         if docs is None or groundtruths is None:
             return
         traversal_pathss = parameters.get('traversal_paths', self.default_traversal_paths)
-        docs_groundtruths = self.DocumentGroundtruthArray(
+        docs_groundtruths = self.DocGroundtruthArray(
             [
                 self.DocGroundtruthPair(doc, groundtruth)
                 for doc, groundtruth in zip(docs, groundtruths)
