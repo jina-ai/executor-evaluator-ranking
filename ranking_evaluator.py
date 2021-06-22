@@ -125,7 +125,7 @@ class RankingEvaluator(Executor):
             ]
         )
 
-        for doc, groundtruth in docs_groundtruths.traverse_flat(traversal_pathss):
+        for doc, groundtruth in docs_groundtruths.traverse_flat(traversal_paths):
             actual = [match.get_attributes(*self.attribute_fields) for match in doc.matches]
             desired = [match.get_attributes(*self.attribute_fields) for match in groundtruth.matches]
             evaluation = self.metric_fn(actual=actual, desired=desired, **self.func_extra_args)
