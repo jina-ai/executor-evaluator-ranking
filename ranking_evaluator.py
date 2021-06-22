@@ -117,7 +117,7 @@ class RankingEvaluator(Executor):
     def evaluate(self, docs: Optional[DocumentArray], groundtruths: Optional[DocumentArray], parameters: Dict, **kwargs):
         if docs is None or groundtruths is None:
             return
-        traversal_pathss = parameters.get('traversal_paths', self.default_traversal_paths)
+        traversal_paths = parameters.get('traversal_paths', self.default_traversal_paths)
         docs_groundtruths = self.DocGroundtruthArray(
             [
                 self.DocGroundtruthPair(doc, groundtruth)
