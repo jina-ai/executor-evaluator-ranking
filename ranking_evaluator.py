@@ -73,7 +73,7 @@ class RankingEvaluator(Executor):
             is_relevance_score: bool = True,
             attribute_fields: Union[str, Tuple[str]] = ('tags__id',),
             evaluation_name: Optional[str] = None,
-            default_traversal_path: Union[str, List[str]] = 'r',
+            default_traversal_paths: Union[str, List[str]] = 'r',
             *args,
             **kwargs,
     ):
@@ -98,7 +98,7 @@ class RankingEvaluator(Executor):
         self.power_relevance = power_relevance
         self.is_relevance_score = is_relevance_score
         self.attribute_fields = attribute_fields if isinstance(attribute_fields, list) else list(attribute_fields)
-        self.default_traversal_path = default_traversal_path
+        self.default_traversal_paths = default_traversal_paths
         self.evaluation_name = evaluation_name
 
         self.metric_fn = funcs[self.metric]
@@ -116,8 +116,8 @@ class RankingEvaluator(Executor):
     @requests
     def evaluate(self, docs: Optional[DocumentArray], groundtruths: Optional[DocumentArray], parameters: Dict, **kwargs):
         if docs is None or groundtruths is None:
-            return 
-        traversal_paths = parameters.get('traversal_path', self.default_traversal_path)
+            return
+        traversal_pathss = parameters.get('traversal_paths', self.default_traversal_paths)
         docs_groundtruths = self.DocumentGroundtruthArray(
             [
                 self.DocGroundtruthPair(doc, groundtruth)
@@ -125,7 +125,7 @@ class RankingEvaluator(Executor):
             ]
         )
 
-        for doc, groundtruth in docs_groundtruths.traverse_flat(traversal_paths):
+        for doc, groundtruth in docs_groundtruths.traverse_flat(traversal_pathss):
             actual = [match.get_attributes(*self.attribute_fields) for match in doc.matches]
             desired = [match.get_attributes(*self.attribute_fields) for match in groundtruth.matches]
             evaluation = self.metric_fn(actual=actual, desired=desired, **self.func_extra_args)

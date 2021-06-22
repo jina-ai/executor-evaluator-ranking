@@ -50,7 +50,7 @@ def test_ranking_evaluator_precision_chunks(eval_at, expected):
 
     evaluator.evaluate(docs=DocumentArray([query]),
                        groundtruths=DocumentArray([gt]),
-                       parameters={'traversal_path': 'c'})
+                       parameters={'traversal_paths': 'c'})
     assert query.chunks[0].evaluations[evaluator._evaluation_name].value == pytest.approx(expected, 0.0001)
 
 
