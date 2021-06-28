@@ -73,7 +73,7 @@ class RankingEvaluator(Executor):
             is_relevance_score: bool = True,
             attribute_fields: Union[str, Tuple[str]] = ('tags__id',),
             evaluation_name: Optional[str] = None,
-            default_traversal_paths: Union[str, List[str]] = 'r',
+            default_traversal_paths: List[str] = ['r'],
             *args,
             **kwargs,
     ):
@@ -129,4 +129,5 @@ class RankingEvaluator(Executor):
             actual = [match.get_attributes(*self.attribute_fields) for match in doc.matches]
             desired = [match.get_attributes(*self.attribute_fields) for match in groundtruth.matches]
             evaluation = self.metric_fn(actual=actual, desired=desired, **self.func_extra_args)
+            print(f' name {self._evaluation_name} => {evaluation}')
             doc.evaluations[self._evaluation_name] = evaluation
