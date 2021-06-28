@@ -1,7 +1,8 @@
 jtype: Flow
 version: '1'
 with:
-  return_results: true
+  py_modules:
+    - ranking_evaluator.py
 executors:
   - name: evaluator
     uses:

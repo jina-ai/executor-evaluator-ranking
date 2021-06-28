@@ -22,7 +22,7 @@ def test_evaluation():
 
     with Flow.load_config(os.path.join(cur_dir, 'flow.yml')) as evaluate_flow:
         results = evaluate_flow.search(
-            inputs=get_doc_groundtruth_pairs()
+            inputs=get_doc_groundtruth_pairs(), return_results=True
         )
 
     assert results[0].docs[0].evaluations[f'precision@5'].value == pytest.approx(0.4, 0.0001)
