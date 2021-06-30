@@ -1,4 +1,4 @@
-FROM jinaai/jina:master as base
+FROM jinaai/jina:2.0.0 as base
 
 COPY . ./ranking_evaluator/
 WORKDIR ./ranking_evaluator
