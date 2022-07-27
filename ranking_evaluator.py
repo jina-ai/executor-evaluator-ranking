@@ -9,6 +9,8 @@ from jina.types.arrays.traversable import TraversableSequence
 
 from metrics import precision, recall, reciprocal_rank, average_precision, fscore, ndcg
 
+import warnings
+
 
 class RankingEvaluator(Executor):
     class DocGroundtruthPair:
@@ -73,7 +75,8 @@ class RankingEvaluator(Executor):
             is_relevance_score: bool = True,
             attribute_fields: Union[str, Tuple[str]] = ('tags__id',),
             evaluation_name: Optional[str] = None,
-            default_traversal_paths: List[str] = ['r'],
+            default_access_paths: List[str] = ['r'],
+            default_traversal_paths: Optional[List[str]] = None,
             *args,
             **kwargs,
     ):
@@ -98,7 +101,13 @@ class RankingEvaluator(Executor):
         self.power_relevance = power_relevance
         self.is_relevance_score = is_relevance_score
         self.attribute_fields = attribute_fields if isinstance(attribute_fields, list) else list(attribute_fields)
-        self.default_traversal_paths = default_traversal_paths
+        if default_traversal_paths is not None:
+            self.default_access_paths = default_traversal_paths
+            warnings.warn("'default_traversal_paths' will be deprecated in the future,  please use 'default_access_paths'",
+                          DeprecationWarning,
+                          stacklevel=2)
+        else:
+            self.default_access_paths = default_access_paths
         self.evaluation_name = evaluation_name
 
         self.metric_fn = funcs[self.metric]
@@ -117,7 +126,7 @@ class RankingEvaluator(Executor):
     def evaluate(self, docs: Optional[DocumentArray], groundtruths: Optional[DocumentArray], parameters: Dict, **kwargs):
         if docs is None or groundtruths is None:
             return
-        traversal_paths = parameters.get('traversal_paths', self.default_traversal_paths)
+        access_paths = parameters.get('access_paths', self.default_access_paths)
         docs_groundtruths = self.DocGroundtruthArray(
             [
                 self.DocGroundtruthPair(doc, groundtruth)
@@ -125,7 +134,7 @@ class RankingEvaluator(Executor):
             ]
         )
 
-        for doc, groundtruth in docs_groundtruths.traverse_flat(traversal_paths):
+        for doc, groundtruth in docs_groundtruths.traverse_flat(access_paths):
             actual = [match.get_attributes(*self.attribute_fields) for match in doc.matches]
             desired = [match.get_attributes(*self.attribute_fields) for match in groundtruth.matches]
             evaluation = self.metric_fn(actual=actual, desired=desired, **self.func_extra_args)

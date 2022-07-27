@@ -18,7 +18,7 @@ by a `query` with the matches expected inside a `groundtruth`.
 - `attribute_fields` (Union[str, Tuple[str]], default ('tags__id', )): The fields names to be extracted from the `matches`. This relies in `DocumentArray` `get_attributes` API to extract these fields. For every `metric` this field should be the field 
                     where the `Document` identifier can be found. For `ndcg` the relevance field is also needed. 
 - `evaluation_name` (str): The name of the evaluation to set for the `documents` evaluated
-- `default_traversal_paths` (str): Fallback traversal path in case there is not traversal path sent in the request.
+- `default_access_paths` (str): Fallback traversal path in case there is not traversal path sent in the request.
 
 ## Prerequisites
 
